@@ -28,8 +28,8 @@ An AI-powered tool that converts natural language descriptions of psychology exp
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-survey-maker.git
-cd ai-survey-maker
+git clone https://github.com/YOUR_USERNAME/AI-SURVEY-MAKER.git
+cd AI-SURVEY-MAKER
 ```
 
 2. Install dependencies:
