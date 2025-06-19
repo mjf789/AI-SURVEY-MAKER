@@ -34,7 +34,7 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
     }));
   };
 
-  // Format hypotheses for display - ADDED THIS FUNCTION
+  // Format hypotheses for display
   const formatHypotheses = () => {
     if (!surveyData.hypothesis) return 'None added';
     
@@ -61,22 +61,21 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
     return [{ label: 'Hypothesis', value: surveyData.hypothesis }];
   };
 
+  // Only show two sections now: Hypotheses/DVs and Demographics
   const sections = [
     {
-      icon: FiFileText,
-      title: 'Study Design',
+      icon: FiClipboard,
+      title: 'Research Design',
       color: 'blue',
       items: [
-        { label: 'Type', value: surveyData.studyType || 'Not specified', highlight: true },
-        { label: 'Research Question', value: surveyData.researchQuestion || 'Not specified' },
         { label: 'Hypotheses', value: formatHypotheses() }
       ],
-      expandedItems: Array.isArray(surveyData.hypothesis) && surveyData.hypothesis.length > 1 
+      expandedItems: Array.isArray(surveyData.hypothesis) && surveyData.hypothesis.length > 0 
         ? getDetailedHypotheses() 
         : null
     },
     {
-      icon: FiClipboard,
+      icon: FiLayers,
       title: 'Dependent Variables',
       color: 'purple',
       items: formatDependentVariables()
@@ -233,43 +232,41 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
               `}
             >
               {isGenerating ? (
-                <>
-                  <FiLoader className="inline-block w-5 h-5 mr-3 animate-spin" />
+                <div className="flex items-center gap-3">
+                  <FiLoader className="w-5 h-5 animate-spin" />
                   Generating Survey...
-                </>
+                </div>
               ) : (
-                <>
-                  <FiZap className="inline-block w-5 h-5 mr-3" />
-                  Generate Qualtrics Survey
-                </>
+                <div className="flex items-center gap-3">
+                  <FiZap className="w-5 h-5" />
+                  Generate Survey
+                </div>
               )}
             </Button>
           </div>
         ) : (
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500/20 border border-green-500/30 mb-4">
+          <div className="text-center space-y-6">
+            {/* Success message */}
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-green-500/10 border border-green-500/30">
               <FiCheck className="w-5 h-5 text-green-400" />
               <span className="text-green-400 font-medium">Survey Generated Successfully!</span>
             </div>
             
-            <div className="flex justify-center gap-4">
-              <Button
-                onClick={() => window.open(generatedUrl, '_blank')}
-                className="px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-xl transition-all duration-300 flex items-center gap-2"
-              >
-                <FiExternalLink className="w-4 h-4" />
-                Open in Qualtrics
-              </Button>
-              
-              <Button
-                onClick={() => {
-                  setGeneratedUrl('');
-                  setIsGenerating(false);
-                }}
-                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl transition-all duration-300"
-              >
-                Generate Another
-              </Button>
+            {/* Survey URL */}
+            <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10">
+              <p className="text-sm text-zinc-400 mb-3">Your survey is ready at:</p>
+              <div className="flex items-center gap-3">
+                <code className="flex-1 px-4 py-3 bg-zinc-900 rounded-lg text-blue-400 text-sm font-mono">
+                  {generatedUrl}
+                </code>
+                <Button
+                  onClick={() => window.open(generatedUrl, '_blank')}
+                  className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center gap-2"
+                >
+                  <FiExternalLink className="w-4 h-4" />
+                  Open
+                </Button>
+              </div>
             </div>
           </div>
         )}

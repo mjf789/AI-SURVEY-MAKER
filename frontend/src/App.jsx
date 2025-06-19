@@ -5,11 +5,11 @@ import GlobalStyles from './components/GlobalStyles';
 function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [surveyData, setSurveyData] = useState({
-    studyType: '',
+    // Removed studyType since we're not using it anymore
     researchQuestion: '',
-    hypothesis: [], // Changed from string to array
+    hypothesis: [], // Array format for multiple hypotheses
     extractedVariables: { iv: [], dv: [], population: '' },
-    dependentVariables: [], // Renamed from exploratoryDVs
+    dependentVariables: [], // For the dependent variables step
     demographics: [],
     blocks: [],
     flow: ['consent', 'demographics', 'measures', 'debrief']
@@ -50,7 +50,6 @@ function App() {
       }).join('\n\n');
 
       const description = `
-        Study Type: ${surveyData.studyType}
         Research Question: ${surveyData.researchQuestion}
         Hypotheses: ${hypothesesText}
         Dependent Variables: 
@@ -107,7 +106,7 @@ function App() {
           <div className="absolute bottom-1/4 -right-48 w-96 h-96 bg-blue-600/20 rounded-full blur-[128px] animate-pulse animation-delay-2000" />
         </div>
 
-        {/* Main container - simplified */}
+        {/* Main container */}
         <div className="relative mx-auto h-screen px-4 flex flex-col">
           <BuilderPanel 
             currentStep={currentStep}

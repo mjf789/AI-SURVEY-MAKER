@@ -1,12 +1,12 @@
 import React from 'react';
 
 const ProgressSteps = ({ currentStep }) => {
+  // Updated steps without "Study Type"
   const steps = [
-    { number: 1, label: 'Study Type' },
-    { number: 2, label: 'Hypotheses' },
-    { number: 3, label: 'Dependent Variables' },
-    { number: 4, label: 'Demographics' },
-    { number: 5, label: 'Review & Generate' }
+    { number: 1, label: 'Hypotheses' },
+    { number: 2, label: 'Dependent Variables' },
+    { number: 3, label: 'Demographics' },
+    { number: 4, label: 'Review & Generate' }
   ];
 
   return (
