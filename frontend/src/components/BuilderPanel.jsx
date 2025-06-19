@@ -15,8 +15,7 @@ const BuilderPanel = ({
   updateSurveyData, 
   onNext, 
   onPrevious,
-  onGenerateSurvey,
-  showPreview 
+  onGenerateSurvey
 }) => {
   const renderStep = () => {
     switch(currentStep) {
@@ -75,30 +74,26 @@ const BuilderPanel = ({
   };
 
   return (
-    <div className={`
-      min-h-screen flex flex-col backdrop-blur-xl
-      ${showPreview 
-        ? 'bg-gradient-to-br from-zinc-900/80 via-zinc-900/60 to-transparent rounded-l-3xl border-l border-t border-b border-white/10' 
-        : ''
-      }
-    `}>
-      <div className={`flex-1 flex flex-col ${showPreview ? 'p-10' : 'p-16'}`}>
+    <div className="h-full flex flex-col backdrop-blur-xl">
+      <div className="flex-1 flex flex-col p-16 min-h-0">
         {/* Progress indicator */}
-        <div className="mb-12">
+        <div className="mb-12 flex-shrink-0">
           <ProgressSteps currentStep={currentStep} />
         </div>
         
-        {/* Main content area - made scrollable with custom scrollbar */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
-          <div className={`w-full min-h-full ${showPreview ? 'px-4' : 'max-w-7xl mx-auto px-4'}`}>
-            <div key={currentStep} className="animate-stepFade pb-8">
-              {renderStep()}
+        {/* Main content area - scrollable container */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar pr-4">
+            <div className="w-full max-w-7xl mx-auto">
+              <div key={currentStep} className="animate-stepFade pb-8">
+                {renderStep()}
+              </div>
             </div>
           </div>
         </div>
         
         {/* Navigation - sticky at bottom */}
-        <div className="flex gap-6 pt-8 mt-auto">
+        <div className="flex gap-6 pt-8 flex-shrink-0">
           {currentStep > 1 && (
             <Button 
               variant="ghost" 
@@ -144,7 +139,7 @@ const BuilderPanel = ({
           }
         }
         .animate-stepFade {
-          animation: stepFade 0.3s ease-out;
+          animation: stepFade 0.4s ease-out;
         }
       `}</style>
     </div>
