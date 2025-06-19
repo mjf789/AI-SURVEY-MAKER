@@ -1,108 +1,179 @@
 // backend/services/scaleExtractor.js
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+const pdf = require('pdf-parse');
 const fs = require('fs').promises;
 
 class ScaleExtractorService {
-    constructor() {
-        this.llmService = require('./llm');
+  /**
+   * Extract scales from PDF file
+   * @param {string} filePath - Path to PDF file
+   * @returns {Promise<Array>} Extracted scales with items
+   */
+  async extractScalesFromPDF(filePath) {
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      const data = await pdf(dataBuffer);
+      
+      // Extract text from PDF
+      const text = data.text;
+      
+      // Parse scales from text
+      const scales = this.parseScalesFromText(text);
+      
+      return scales;
+    } catch (error) {
+      console.error('Error extracting from PDF:', error);
+      throw new Error('Failed to extract scales from PDF');
     }
+  }
 
-    async extractScalesFromFile(filePath, fileType) {
-        let textContent = '';
-        
-        try {
-            if (fileType === 'pdf') {
-                textContent = await this.extractFromPDF(filePath);
-            } else if (fileType === 'docx') {
-                textContent = await this.extractFromDOCX(filePath);
-            } else {
-                throw new Error('Unsupported file type');
-            }
-            
-            // Use LLM to identify and extract scales
-            const scales = await this.identifyScales(textContent);
-            
-            return scales;
-        } catch (error) {
-            console.error('Error extracting scales:', error);
-            throw error;
-        }
-    }
+  /**
+   * Parse scales from extracted text
+   * @param {string} text - Extracted text from PDF
+   * @returns {Array} Parsed scales
+   */
+  parseScalesFromText(text) {
+    const scales = [];
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
     
-    async extractFromPDF(filePath) {
-        const dataBuffer = await fs.readFile(filePath);
-        const data = await pdfParse(dataBuffer);
-        return data.text;
-    }
+    let currentScale = null;
+    let currentItems = [];
     
-    async extractFromDOCX(filePath) {
-        const result = await mammoth.extractRawText({ path: filePath });
-        return result.value;
-    }
-    
-    async identifyScales(textContent) {
-        const prompt = `
-        Analyze the following academic text and extract any psychological scales, measures, or questionnaires.
-        
-        For each scale found, provide:
-        1. Scale name
-        2. Full item text for each question
-        3. Response format (e.g., 7-point Likert, Yes/No, etc.)
-        4. Any reverse-coded items
-        5. Subscales if applicable
-        6. Brief description of what it measures
-        
-        Text to analyze:
-        ${textContent}
-        
-        Return the results in this JSON format:
-        {
-            "scales": [
-                {
-                    "name": "Scale Name",
-                    "description": "What it measures",
-                    "items": [
-                        {
-                            "text": "Item text",
-                            "reverse_coded": false,
-                            "subscale": "subscale name if applicable"
-                        }
-                    ],
-                    "response_format": {
-                        "type": "likert",
-                        "points": 7,
-                        "anchors": ["Strongly Disagree", "Strongly Agree"]
-                    }
-                }
-            ]
-        }`;
-        
-        return await this.llmService.parseWithStructuredPrompt(prompt);
-    }
-    
-    async validateExtractedScales(scales) {
-        // Validate that scales have required fields
-        const validatedScales = [];
-        
-        for (const scale of scales) {
-            if (scale.name && scale.items && scale.items.length > 0) {
-                // Ensure each item has required fields
-                const validatedItems = scale.items.filter(item => 
-                    item.text && item.text.trim().length > 0
-                );
-                
-                if (validatedItems.length > 0) {
-                    validatedScales.push({
-                        ...scale,
-                        items: validatedItems
-                    });
-                }
-            }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Detect scale names (usually in caps or followed by "Scale")
+      if (this.isScaleName(line)) {
+        // Save previous scale if exists
+        if (currentScale && currentItems.length > 0) {
+          scales.push({
+            scaleName: currentScale,
+            items: currentItems.map((item, index) => ({
+              id: `item_${index + 1}`,
+              text: item.text,
+              responseType: this.detectResponseType(item.text)
+            }))
+          });
         }
         
-        return validatedScales;
+        currentScale = line;
+        currentItems = [];
+      }
+      // Detect scale items (usually numbered)
+      else if (this.isScaleItem(line)) {
+        currentItems.push({
+          text: this.cleanItemText(line)
+        });
+      }
     }
+    
+    // Don't forget the last scale
+    if (currentScale && currentItems.length > 0) {
+      scales.push({
+        scaleName: currentScale,
+        items: currentItems.map((item, index) => ({
+          id: `item_${index + 1}`,
+          text: item.text,
+          responseType: this.detectResponseType(item.text)
+        }))
+      });
+    }
+    
+    // If no scales found, treat the whole text as items
+    if (scales.length === 0 && lines.length > 0) {
+      const items = lines
+        .filter(line => this.isScaleItem(line))
+        .map(line => this.cleanItemText(line));
+      
+      if (items.length > 0) {
+        scales.push({
+          scaleName: 'Extracted Scale',
+          items: items.map((text, index) => ({
+            id: `item_${index + 1}`,
+            text: text,
+            responseType: 'likert7'
+          }))
+        });
+      }
+    }
+    
+    return scales;
+  }
+
+  /**
+   * Check if a line is likely a scale name
+   */
+  isScaleName(line) {
+    const scalePatterns = [
+      /^[A-Z\s]+$/,  // All caps
+      /scale\s*$/i,   // Ends with "scale"
+      /inventory\s*$/i, // Ends with "inventory"
+      /questionnaire\s*$/i, // Ends with "questionnaire"
+      /measure\s*$/i, // Ends with "measure"
+      /^(the\s+)?[\w\s]+(scale|inventory|questionnaire|measure)/i
+    ];
+    
+    return scalePatterns.some(pattern => pattern.test(line)) && 
+           line.length < 100 && // Not too long
+           !this.isScaleItem(line); // Not a numbered item
+  }
+
+  /**
+   * Check if a line is likely a scale item
+   */
+  isScaleItem(line) {
+    const itemPatterns = [
+      /^\d+[\.\)]\s+.+/, // 1. Item or 1) Item
+      /^[a-z][\.\)]\s+.+/i, // a. Item or a) Item
+      /^[\u2022\u2023\u25E6\u2043\u2219]\s+.+/, // Bullet points
+      /^[-*]\s+.+/, // Dash or asterisk bullets
+    ];
+    
+    return itemPatterns.some(pattern => pattern.test(line)) ||
+           (line.length > 10 && line.length < 200 && /^[A-Z]/.test(line));
+  }
+
+  /**
+   * Clean item text by removing numbering
+   */
+  cleanItemText(text) {
+    return text
+      .replace(/^\d+[\.\)]\s*/, '') // Remove "1." or "1)"
+      .replace(/^[a-z][\.\)]\s*/i, '') // Remove "a." or "a)"
+      .replace(/^[\u2022\u2023\u25E6\u2043\u2219\-*]\s*/, '') // Remove bullets
+      .trim();
+  }
+
+  /**
+   * Detect the likely response type for an item
+   */
+  detectResponseType(text) {
+    const lowerText = text.toLowerCase();
+    
+    // Frequency items
+    if (/how often|frequency|never.*always|times per/i.test(lowerText)) {
+      return 'frequency7';
+    }
+    
+    // Yes/No items
+    if (/\?$/.test(text) && text.length < 50) {
+      return 'yesno';
+    }
+    
+    // Likelihood items
+    if (/how likely|likelihood|probable/i.test(lowerText)) {
+      return 'likelihood7';
+    }
+    
+    // Default to Likert scale
+    return 'likert7';
+  }
+
+  /**
+   * Extract scales from plain text input
+   */
+  extractScalesFromText(text) {
+    return this.parseScalesFromText(text);
+  }
 }
 
 module.exports = new ScaleExtractorService();
