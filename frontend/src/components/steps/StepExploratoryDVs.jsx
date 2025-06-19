@@ -128,7 +128,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Update the DV with parsed scales
         const updatedDVs = dependentVariables.map(dv => {
           if (dv.id === dvId) {
@@ -139,7 +139,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
               content: file.name,
               items: scale.items
             }));
-            
+
             return {
               ...dv,
               operationalizations: [...(dv.operationalizations || []), ...newOps]
@@ -147,7 +147,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
           }
           return dv;
         });
-        
+
         updateSurveyData('dependentVariables', updatedDVs);
         alert(`Successfully extracted ${data.scales.length} scale(s) from PDF!`);
       } else {
@@ -240,33 +240,20 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
                   </div>
                   <button
                     onClick={() => handleRemoveDV(dv.id)}
-                    className="p-2 bg-white/5 hover:bg-red-500/20 rounded-lg transition-colors duration-200"
+                    className="p-2 hover:bg-red-500/20 rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
                   >
-                    <FiTrash2 className="w-4 h-4 text-white/60 hover:text-red-400" />
+                    <FiTrash2 className="w-5 h-5 text-white/60 hover:text-red-400" />
                   </button>
                 </div>
 
-                {/* Operationalizations */}
-                {dv.operationalizations.length === 0 && dv.isExtracted && (
-                  <div className="mb-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                    <p className="text-yellow-300 text-sm">
-                      <span className="font-medium">Action needed:</span> Add at least one scale or measure for this variable
-                    </p>
-                  </div>
-                )}
-                
-                <div className="space-y-4 mb-4">
-                  {dv.operationalizations.map((op, opIndex) => (
-                    <div key={op.id} className="p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all duration-300">
+                {/* Operationalizations list */}
+                <div className="space-y-3 mb-6">
+                  {dv.operationalizations.map((op) => (
+                    <div key={op.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all duration-300">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-400">{opIndex + 1}</span>
-                            </div>
-                            <h4 className="text-lg font-medium text-white">{op.scaleName}</h4>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-zinc-400">
+                        <div>
+                          <h4 className="text-lg font-medium text-white mb-1">{op.scaleName}</h4>
+                          <div className="text-sm text-zinc-400 flex items-center gap-2">
                             {op.method === 'pdf' ? (
                               <>
                                 <FiFile className="w-4 h-4" />
@@ -292,52 +279,21 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
                   ))}
                 </div>
 
-                {/* Direct PDF upload for existing DV */}
-                <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
-                  <label className="block">
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={(e) => handleFileUpload(e, dv.id)}
-                      className="hidden"
-                      id={`direct-pdf-upload-${dv.id}`}
-                    />
-                    <div className="cursor-pointer group">
-                      <div className="flex items-center justify-center p-6 border-2 border-dashed border-white/20 rounded-xl hover:border-purple-500/40 transition-all duration-300">
-                        {uploadingFor === dv.id ? (
-                          <div className="text-center">
-                            <FiLoader className="w-10 h-10 text-purple-400 mx-auto mb-3 animate-spin" />
-                            <p className="text-white/70">Processing PDF...</p>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <FiUpload className="w-10 h-10 text-white/50 group-hover:text-purple-400 transition-colors mx-auto mb-3" />
-                            <p className="text-white/70 group-hover:text-white transition-colors">
-                              Quick upload: Drop a PDF with scales here
-                            </p>
-                            <p className="text-sm text-white/40 mt-1">
-                              AI will extract all scales automatically
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-                </div>
+                {/* REMOVED: Direct PDF upload section */}
 
-                {/* Add operationalization button */}
-                {addingOperationalization !== dv.id && (
+                {/* Add operationalization button - ONLY show if DV has operationalizations */}
+                {dv.operationalizations.length > 0 && addingOperationalization !== dv.id && (
                   <Button
                     onClick={() => setAddingOperationalization(dv.id)}
                     className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
                   >
                     <FiPlus className="mr-2 w-4 h-4" />
-                    Add Operationalization Manually
+                    Add Another Operationalization
                   </Button>
                 )}
 
-                {/* Add operationalization form */}
-                {addingOperationalization === dv.id && (
+                {/* Add operationalization form - ALWAYS show for DVs without operationalizations OR when button clicked */}
+                {(dv.operationalizations.length === 0 || addingOperationalization === dv.id) && (
                   <div className="space-y-4 p-5 rounded-xl bg-white/[0.03] border border-blue-500/30">
                     <div>
                       <Label className="text-base font-medium text-white mb-2 block">
@@ -348,6 +304,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
                         onChange={(e) => setNewOperationalization({ ...newOperationalization, scaleName: e.target.value })}
                         placeholder="e.g., Social Interaction Anxiety Scale (SIAS)"
                         className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
+                        autoFocus={dv.operationalizations.length === 0}
                       />
                     </div>
 
@@ -358,22 +315,20 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
                       <div className="flex gap-2 mb-3">
                         <button
                           onClick={() => setNewOperationalization({ ...newOperationalization, method: 'text' })}
-                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-                            newOperationalization.method === 'text'
+                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${newOperationalization.method === 'text'
                               ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                               : 'bg-white/5 text-white/60 border border-white/10'
-                          }`}
+                            }`}
                         >
                           <FiFileText className="inline mr-2 w-4 h-4" />
                           Paste Text
                         </button>
                         <button
                           onClick={() => setNewOperationalization({ ...newOperationalization, method: 'pdf' })}
-                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-                            newOperationalization.method === 'pdf'
+                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${newOperationalization.method === 'pdf'
                               ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                               : 'bg-white/5 text-white/60 border border-white/10'
-                          }`}
+                            }`}
                         >
                           <FiUpload className="inline mr-2 w-4 h-4" />
                           Upload PDF
@@ -384,7 +339,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
                         <Textarea
                           value={newOperationalization.content}
                           onChange={(e) => setNewOperationalization({ ...newOperationalization, content: e.target.value })}
-                          placeholder="Paste the scale items here (raw text is fine - our AI will format it)"
+                          placeholder="Paste the scale items here (e.g., 1. I feel nervous in social situations...)"
                           className="w-full min-h-[150px] px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
                         />
                       ) : (
@@ -442,213 +397,211 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, 
               </div>
             </div>
           ))}
-
-          {/* Add new DV form */}
-          {isAdding && (
-            <div className="rounded-2xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-8">
-              <h3 className="text-2xl font-semibold text-white mb-6">Add New Dependent Variable</h3>
-              
-              {/* DV Name Input */}
-              <div className="mb-6">
-                <Label className="text-base font-medium text-white mb-2 block">
-                  Variable Name
-                </Label>
-                <Input
-                  value={newDV.name}
-                  onChange={(e) => setNewDV({ ...newDV, name: e.target.value })}
-                  placeholder="e.g., Social Anxiety, Self-Esteem, Academic Performance"
-                  className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
-                  autoFocus
-                />
-              </div>
-
-              {/* Operationalizations for new DV */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Label className="text-base font-medium text-white">
-                    Operationalizations
-                  </Label>
-                  {newDV.operationalizations.length === 0 && (
-                    <span className="text-sm text-zinc-500">Add at least one scale or measure</span>
-                  )}
-                </div>
-
-                {/* List of added operationalizations */}
-                {newDV.operationalizations.length > 0 && (
-                  <div className="space-y-3 mb-4">
-                    {newDV.operationalizations.map((op, index) => (
-                      <div key={op.id} className="p-4 rounded-lg bg-white/[0.02] border border-white/5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-white">{op.scaleName}</div>
-                            <div className="text-sm text-zinc-400">
-                              {op.method === 'pdf' ? `PDF: ${op.content}` : 'Text content'}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveOperationalization('new', op.id)}
-                            className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-                          >
-                            <FiTrash2 className="w-3.5 h-3.5 text-white/60 hover:text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add operationalization button or form */}
-                {addingOperationalization !== 'new' ? (
-                  <Button
-                    onClick={() => setAddingOperationalization('new')}
-                    className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
-                  >
-                    <FiPlus className="mr-2 w-4 h-4" />
-                    Add Operationalization
-                  </Button>
-                ) : (
-                  <div className="space-y-4 p-5 rounded-xl bg-white/[0.03] border border-blue-500/30">
-                    <div>
-                      <Label className="text-base font-medium text-white mb-2 block">
-                        Scale Name
-                      </Label>
-                      <Input
-                        value={newOperationalization.scaleName}
-                        onChange={(e) => setNewOperationalization({ ...newOperationalization, scaleName: e.target.value })}
-                        placeholder="e.g., Beck Anxiety Inventory, Rosenberg Self-Esteem Scale"
-                        className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-base font-medium text-white mb-2 block">
-                        Scale Content
-                      </Label>
-                      <div className="flex gap-2 mb-3">
-                        <button
-                          onClick={() => setNewOperationalization({ ...newOperationalization, method: 'text' })}
-                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-                            newOperationalization.method === 'text'
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-white/5 text-white/60 border border-white/10'
-                          }`}
-                        >
-                          <FiFileText className="inline mr-2 w-4 h-4" />
-                          Paste Text
-                        </button>
-                        <button
-                          onClick={() => setNewOperationalization({ ...newOperationalization, method: 'pdf' })}
-                          className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-                            newOperationalization.method === 'pdf'
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-white/5 text-white/60 border border-white/10'
-                          }`}
-                        >
-                          <FiUpload className="inline mr-2 w-4 h-4" />
-                          Upload PDF
-                        </button>
-                      </div>
-
-                      {newOperationalization.method === 'text' ? (
-                        <Textarea
-                          value={newOperationalization.content}
-                          onChange={(e) => setNewOperationalization({ ...newOperationalization, content: e.target.value })}
-                          placeholder="Paste the scale items here (e.g., 1. I feel nervous in social situations...)"
-                          className="w-full min-h-[150px] px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
-                        />
-                      ) : (
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept=".pdf"
-                            onChange={(e) => handleFileUpload(e)}
-                            className="hidden"
-                            id="file-upload-new"
-                          />
-                          <label
-                            htmlFor="file-upload-new"
-                            className="flex items-center justify-center w-full p-8 border-2 border-dashed border-white/20 hover:border-white/30 rounded-lg cursor-pointer transition-all duration-300 bg-white/[0.02] hover:bg-white/[0.03]"
-                          >
-                            {newOperationalization.content ? (
-                              <div className="text-center">
-                                <FiFile className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-                                <p className="text-white">{newOperationalization.content}</p>
-                                <p className="text-sm text-zinc-500 mt-1">Click to change file</p>
-                              </div>
-                            ) : (
-                              <div className="text-center">
-                                <FiUpload className="w-8 h-8 mx-auto mb-2 text-zinc-500" />
-                                <p className="text-white">Click to upload PDF</p>
-                                <p className="text-sm text-zinc-500 mt-1">Contains scale items</p>
-                              </div>
-                            )}
-                          </label>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={handleAddOperationalization}
-                        disabled={!newOperationalization.scaleName || !newOperationalization.content}
-                        className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-2.5 rounded-lg disabled:opacity-50"
-                      >
-                        <FiCheck className="mr-2 w-4 h-4" />
-                        Add Scale
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setAddingOperationalization(null);
-                          setNewOperationalization({ scaleName: '', method: 'text', content: '' });
-                        }}
-                        className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Action buttons for new DV */}
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleAddDV}
-                  disabled={!newDV.name || newDV.operationalizations.length === 0}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-lg disabled:opacity-50 disabled:from-gray-600 disabled:to-gray-700 transition-all duration-300"
-                >
-                  <FiCheck className="mr-2 w-4 h-4" />
-                  Create Variable
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsAdding(false);
-                    setNewDV({ name: '', operationalizations: [] });
-                    setAddingOperationalization(null);
-                    setNewOperationalization({ scaleName: '', method: 'text', content: '' });
-                  }}
-                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Add button when DVs exist */}
-        {dependentVariables.length > 0 && !isAdding && (
-          <div className="mt-8 text-center">
-            <Button
-              onClick={() => setIsAdding(true)}
-              className="bg-white/[0.05] border border-white/20 text-white hover:bg-white/[0.08] hover:border-white/30 px-6 py-3 text-base font-medium rounded-lg transition-all duration-300 hover:scale-105"
-            >
-              <FiPlus className="mr-2 w-4 h-4" />
-              Add Another Variable
-            </Button>
+        {/* Add new DV form */}
+        {isAdding && (
+          <div className="rounded-2xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-8">
+            <h3 className="text-2xl font-semibold text-white mb-6">Add New Dependent Variable</h3>
+
+            {/* DV Name Input */}
+            <div className="mb-6">
+              <Label className="text-base font-medium text-white mb-2 block">
+                Variable Name
+              </Label>
+              <Input
+                value={newDV.name}
+                onChange={(e) => setNewDV({ ...newDV, name: e.target.value })}
+                placeholder="e.g., Social Anxiety, Self-Esteem, Academic Performance"
+                className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
+                autoFocus
+              />
+            </div>
+
+            {/* Operationalizations for new DV */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-base font-medium text-white">
+                  Operationalizations
+                </Label>
+                {newDV.operationalizations.length === 0 && (
+                  <span className="text-sm text-zinc-500">Add at least one scale or measure</span>
+                )}
+              </div>
+
+              {/* List of added operationalizations */}
+              {newDV.operationalizations.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {newDV.operationalizations.map((op, index) => (
+                    <div key={op.id} className="p-4 rounded-lg bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-white">{op.scaleName}</div>
+                          <div className="text-sm text-zinc-400">
+                            {op.method === 'pdf' ? `PDF: ${op.content}` : 'Text content'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveOperationalization('new', op.id)}
+                          className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5 text-white/60 hover:text-red-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add operationalization button or form */}
+              {addingOperationalization !== 'new' ? (
+                <Button
+                  onClick={() => setAddingOperationalization('new')}
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
+                >
+                  <FiPlus className="mr-2 w-4 h-4" />
+                  Add Operationalization
+                </Button>
+              ) : (
+                <div className="space-y-4 p-5 rounded-xl bg-white/[0.03] border border-blue-500/30">
+                  <div>
+                    <Label className="text-base font-medium text-white mb-2 block">
+                      Scale Name
+                    </Label>
+                    <Input
+                      value={newOperationalization.scaleName}
+                      onChange={(e) => setNewOperationalization({ ...newOperationalization, scaleName: e.target.value })}
+                      placeholder="e.g., Beck Anxiety Inventory, Rosenberg Self-Esteem Scale"
+                      className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-medium text-white mb-2 block">
+                      Scale Content
+                    </Label>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        onClick={() => setNewOperationalization({ ...newOperationalization, method: 'text' })}
+                        className={`px-4 py-2 rounded-lg transition-all duration-300 ${newOperationalization.method === 'text'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-white/5 text-white/60 border border-white/10'
+                          }`}
+                      >
+                        <FiFileText className="inline mr-2 w-4 h-4" />
+                        Paste Text
+                      </button>
+                      <button
+                        onClick={() => setNewOperationalization({ ...newOperationalization, method: 'pdf' })}
+                        className={`px-4 py-2 rounded-lg transition-all duration-300 ${newOperationalization.method === 'pdf'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-white/5 text-white/60 border border-white/10'
+                          }`}
+                      >
+                        <FiUpload className="inline mr-2 w-4 h-4" />
+                        Upload PDF
+                      </button>
+                    </div>
+
+                    {newOperationalization.method === 'text' ? (
+                      <Textarea
+                        value={newOperationalization.content}
+                        onChange={(e) => setNewOperationalization({ ...newOperationalization, content: e.target.value })}
+                        placeholder="Paste the scale items here (e.g., 1. I feel nervous in social situations...)"
+                        className="w-full min-h-[150px] px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => handleFileUpload(e)}
+                          className="hidden"
+                          id="file-upload-new"
+                        />
+                        <label
+                          htmlFor="file-upload-new"
+                          className="flex items-center justify-center w-full p-8 border-2 border-dashed border-white/20 hover:border-white/30 rounded-lg cursor-pointer transition-all duration-300 bg-white/[0.02] hover:bg-white/[0.03]"
+                        >
+                          {newOperationalization.content ? (
+                            <div className="text-center">
+                              <FiFile className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+                              <p className="text-white">{newOperationalization.content}</p>
+                              <p className="text-sm text-zinc-500 mt-1">Click to change file</p>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <FiUpload className="w-8 h-8 mx-auto mb-2 text-zinc-500" />
+                              <p className="text-white">Click to upload PDF</p>
+                              <p className="text-sm text-zinc-500 mt-1">Contains scale items</p>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleAddOperationalization}
+                      disabled={!newOperationalization.scaleName || !newOperationalization.content}
+                      className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 py-2.5 rounded-lg disabled:opacity-50"
+                    >
+                      <FiCheck className="mr-2 w-4 h-4" />
+                      Add Scale
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setAddingOperationalization(null);
+                        setNewOperationalization({ scaleName: '', method: 'text', content: '' });
+                      }}
+                      className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons for new DV */}
+            <div className="flex gap-3">
+              <Button
+                onClick={handleAddDV}
+                disabled={!newDV.name || newDV.operationalizations.length === 0}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-lg disabled:opacity-50 disabled:from-gray-600 disabled:to-gray-700 transition-all duration-300"
+              >
+                <FiCheck className="mr-2 w-4 h-4" />
+                Create Variable
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsAdding(false);
+                  setNewDV({ name: '', operationalizations: [] });
+                  setAddingOperationalization(null);
+                  setNewOperationalization({ scaleName: '', method: 'text', content: '' });
+                }}
+                className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Add button when DVs exist */}
+      {dependentVariables.length > 0 && !isAdding && (
+        <div className="mt-8 text-center">
+          <Button
+            onClick={() => setIsAdding(true)}
+            className="bg-white/[0.05] border border-white/20 text-white hover:bg-white/[0.08] hover:border-white/30 px-6 py-3 text-base font-medium rounded-lg transition-all duration-300 hover:scale-105"
+          >
+            <FiPlus className="mr-2 w-4 h-4" />
+            Add Another Variable
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
