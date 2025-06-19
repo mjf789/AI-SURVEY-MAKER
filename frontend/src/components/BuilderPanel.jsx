@@ -31,6 +31,7 @@ const BuilderPanel = ({
           hypothesis={surveyData.hypothesis}
           extractedDVs={surveyData.extractedDVs}
           updateSurveyData={updateSurveyData}
+          lastExtractedHypothesisHash={surveyData.lastExtractedHypothesisHash}
         />;
       case 3:
         // Pass both exploratoryDVs (dependentVariables) AND extractedDVs

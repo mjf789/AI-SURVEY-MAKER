@@ -4,28 +4,47 @@ import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
 import { FiTrendingUp, FiAlertCircle, FiPlus, FiTrash2, FiEdit3, FiCheck, FiX, FiZap } from 'react-icons/fi';
 
-const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }) => {
+const StepResearchQuestion = ({ researchQuestion, hypothesis, extractedDVs: extractedDVsProp, updateSurveyData, lastExtractedHypothesisHash }) => {
   const [focusedField, setFocusedField] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newHypothesis, setNewHypothesis] = useState('');
   const [editText, setEditText] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedDVs, setExtractedDVs] = useState([]);
+  const [extractedDVs, setExtractedDVs] = useState(extractedDVsProp || []);
   
   // Convert hypothesis to array format if it's a string
   const hypotheses = Array.isArray(hypothesis) ? hypothesis : (hypothesis ? [{ id: 1, text: hypothesis }] : []);
 
-  // Extract DVs whenever hypotheses change
-  useEffect(() => {
-    if (hypotheses.length > 0) {
-      extractDVsFromHypotheses();
-    }
-  }, [hypotheses.length]);
+  // Helper to get a hash of the hypotheses array (by text)
+  const getHypothesesHash = (hyps) => JSON.stringify(hyps.map(h => h.text));
 
-  const extractDVsFromHypotheses = async () => {
+  // Extract DVs only if hypotheses have changed (using hash from parent)
+  useEffect(() => {
+    const currentHash = getHypothesesHash(hypotheses);
+    if (
+      hypotheses.length > 0 &&
+      currentHash !== lastExtractedHypothesisHash
+    ) {
+      extractDVsFromHypotheses(currentHash);
+    } else if (hypotheses.length === 0 && lastExtractedHypothesisHash !== '') {
+      setExtractedDVs([]);
+      updateSurveyData('extractedDVs', []);
+      updateSurveyData('dependentVariables', []);
+      updateSurveyData('lastExtractedHypothesisHash', '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hypotheses, lastExtractedHypothesisHash]);
+
+  // If extractedDVsProp changes (e.g., on first mount), sync to local state
+  useEffect(() => {
+    if (Array.isArray(extractedDVsProp)) {
+      setExtractedDVs(extractedDVsProp);
+    }
+  }, [extractedDVsProp]);
+
+  const extractDVsFromHypotheses = async (hashToSet) => {
     if (hypotheses.length === 0) return;
-    
     setIsExtracting(true);
     try {
       const response = await fetch('/api/extract-dvs', {
@@ -35,21 +54,25 @@ const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }
           hypotheses: hypotheses.map(h => h.text) 
         })
       });
-      
       if (response.ok) {
         const data = await response.json();
-        setExtractedDVs(data.extraction?.uniqueDVs || []);
-        
-        // Update survey data with extracted DVs
-        updateSurveyData('extractedDVs', data.extraction?.uniqueDVs || []);
-        
-        // Also prepare dependent variables for the next step
-        const dependentVariables = data.extraction?.uniqueDVs?.map(dv => ({
+        const newExtractedDVs = data.extraction?.uniqueDVs || [];
+        const newDependentVariables = newExtractedDVs.map(dv => ({
           id: dv.id,
           name: dv.name,
           operationalizations: []
-        })) || [];
-        updateSurveyData('dependentVariables', dependentVariables);
+        }));
+        // Only update if values actually changed
+        if (JSON.stringify(newExtractedDVs) !== JSON.stringify(extractedDVsProp)) {
+          setExtractedDVs(newExtractedDVs);
+          updateSurveyData('extractedDVs', newExtractedDVs);
+        }
+        if (JSON.stringify(newDependentVariables) !== JSON.stringify([])) {
+          updateSurveyData('dependentVariables', newDependentVariables);
+        }
+        if (hashToSet !== lastExtractedHypothesisHash) {
+          updateSurveyData('lastExtractedHypothesisHash', hashToSet);
+        }
       }
     } catch (error) {
       console.error('Error extracting DVs:', error);

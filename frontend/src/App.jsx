@@ -14,7 +14,8 @@ function App() {
     dependentVariables: [], // For the dependent variables step
     demographics: [],
     blocks: [],
-    flow: ['consent', 'demographics', 'measures', 'debrief']
+    flow: ['consent', 'demographics', 'measures', 'debrief'],
+    lastExtractedHypothesisHash: '' // NEW: hash of last extracted hypotheses
   });
 
   const updateSurveyData = (field, value) => {
