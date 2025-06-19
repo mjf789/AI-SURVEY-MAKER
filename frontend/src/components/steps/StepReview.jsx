@@ -34,6 +34,18 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
     }));
   };
 
+  // Format hypotheses for display - ADDED THIS FUNCTION
+  const formatHypotheses = () => {
+    if (!surveyData.hypothesis) return 'None added';
+    
+    if (Array.isArray(surveyData.hypothesis)) {
+      return `${surveyData.hypothesis.length} hypothesis${surveyData.hypothesis.length !== 1 ? 'es' : ''}`;
+    }
+    
+    // Fallback for old string format
+    return '1 hypothesis';
+  };
+
   // Get detailed hypotheses for expanded view
   const getDetailedHypotheses = () => {
     if (!surveyData.hypothesis) return [];
