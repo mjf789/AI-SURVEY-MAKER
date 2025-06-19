@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
-import { FiTrendingUp, FiAlertCircle, FiPlus, FiTrash2, FiEdit3, FiCheck, FiX } from 'react-icons/fi';
+import { FiTrendingUp, FiAlertCircle, FiPlus, FiTrash2, FiEdit3, FiCheck, FiX, FiZap } from 'react-icons/fi';
 
 const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }) => {
   const [focusedField, setFocusedField] = useState(null);
@@ -10,9 +10,53 @@ const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }
   const [editingId, setEditingId] = useState(null);
   const [newHypothesis, setNewHypothesis] = useState('');
   const [editText, setEditText] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedDVs, setExtractedDVs] = useState([]);
   
   // Convert hypothesis to array format if it's a string
   const hypotheses = Array.isArray(hypothesis) ? hypothesis : (hypothesis ? [{ id: 1, text: hypothesis }] : []);
+
+  // Extract DVs whenever hypotheses change
+  useEffect(() => {
+    if (hypotheses.length > 0) {
+      extractDVsFromHypotheses();
+    }
+  }, [hypotheses.length]);
+
+  const extractDVsFromHypotheses = async () => {
+    if (hypotheses.length === 0) return;
+    
+    setIsExtracting(true);
+    try {
+      const response = await fetch('/api/extract-dvs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          hypotheses: hypotheses.map(h => h.text) 
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setExtractedDVs(data.extraction?.uniqueDVs || []);
+        
+        // Update survey data with extracted DVs
+        updateSurveyData('extractedDVs', data.extraction?.uniqueDVs || []);
+        
+        // Also prepare dependent variables for the next step
+        const dependentVariables = data.extraction?.uniqueDVs?.map(dv => ({
+          id: dv.id,
+          name: dv.name,
+          operationalizations: []
+        })) || [];
+        updateSurveyData('dependentVariables', dependentVariables);
+      }
+    } catch (error) {
+      console.error('Error extracting DVs:', error);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const handleAddHypothesis = () => {
     if (newHypothesis.trim()) {
@@ -94,15 +138,25 @@ const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }
               </div>
             </div>
             
-            {!isAdding && (
-              <Button
-                onClick={() => setIsAdding(true)}
-                className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-lg transition-all duration-300 flex items-center gap-2"
-              >
-                <FiPlus className="w-4 h-4" />
-                Add Hypothesis
-              </Button>
-            )}
+            <div className="flex items-center gap-4">
+              {/* AI Extraction Status */}
+              {isExtracting && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg">
+                  <FiZap className="w-4 h-4 text-blue-400 animate-pulse" />
+                  <span className="text-sm text-blue-300">AI extracting DVs...</span>
+                </div>
+              )}
+              
+              {!isAdding && (
+                <Button
+                  onClick={() => setIsAdding(true)}
+                  className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-lg transition-all duration-300 flex items-center gap-2"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  Add Hypothesis
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Existing hypotheses */}
@@ -210,6 +264,29 @@ const StepResearchQuestion = ({ researchQuestion, hypothesis, updateSurveyData }
               <FiAlertCircle className="w-5 h-5 text-blue-400/70 mt-0.5 flex-shrink-0" />
               <p className="text-base text-white/50">
                 You can add multiple hypotheses for complex studies.
+              </p>
+            </div>
+          )}
+
+          {/* Extracted DVs Preview */}
+          {extractedDVs.length > 0 && (
+            <div className="mt-8 p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-transparent border border-green-500/20">
+              <div className="flex items-center gap-2 mb-4">
+                <FiZap className="w-5 h-5 text-green-400" />
+                <h4 className="text-lg font-semibold text-white">AI-Extracted Dependent Variables</h4>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {extractedDVs.map((dv) => (
+                  <span
+                    key={dv.id}
+                    className="px-4 py-2 bg-white/10 rounded-lg text-white/90 border border-white/20"
+                  >
+                    {dv.name}
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm text-zinc-400 mt-3">
+                These variables will be available for operationalization in the next step
               </p>
             </div>
           )}

@@ -1,19 +1,39 @@
+// frontend/src/components/steps/StepReview.jsx
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
-import { FiCheck, FiFileText, FiUsers, FiClipboard, FiLayers, FiLoader, FiExternalLink, FiZap, FiShield } from 'react-icons/fi';
+import { FiCheck, FiFileText, FiUsers, FiClipboard, FiLayers, FiLoader, FiExternalLink, FiZap, FiShield, FiDownload } from 'react-icons/fi';
 
 const StepReview = ({ surveyData, onGenerateSurvey }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [exportResult, setExportResult] = useState(null);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    // Simulate generation
-    setTimeout(async () => {
-      await onGenerateSurvey();
-      setGeneratedUrl('https://qualtrics.com/survey/SV_abc123...');
+    setExportResult(null);
+    
+    try {
+      const result = await onGenerateSurvey();
+      
+      if (result && result.success) {
+        setExportResult({
+          success: true,
+          message: 'Survey exported successfully! Check your downloads folder.'
+        });
+      } else {
+        setExportResult({
+          success: false,
+          message: result?.error || 'Failed to generate survey. Please try again.'
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleGenerate:', error);
+      setExportResult({
+        success: false,
+        message: 'An error occurred while generating the survey.'
+      });
+    } finally {
       setIsGenerating(false);
-    }, 3000);
+    }
   };
 
   // Format dependent variables for display
@@ -103,6 +123,9 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
         <h2 className="text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight leading-none">
           Review & Generate
         </h2>
+        <p className="text-xl text-zinc-400 max-w-3xl mx-auto">
+          Export your survey with automatic randomization
+        </p>
       </div>
 
       <div className="max-w-5xl mx-auto px-4">
@@ -182,18 +205,23 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
         <div className="rounded-2xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-6 mb-6">
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
             <FiZap className="w-5 h-5 text-yellow-400" />
-            Survey Flow
+            Survey Flow with Randomization
           </h3>
           
           <div className="flex items-center justify-between relative">
             <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             
-            {['Consent', 'Demographics', 'Measures', 'Debrief'].map((step, index) => (
+            {['Consent', 'Demographics', 'DV Measures', 'Debrief'].map((step, index) => (
               <div key={index} className="relative z-10 text-center">
-                <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl flex items-center justify-center border border-white/20">
+                <div className={`w-14 h-14 mx-auto mb-2 rounded-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl flex items-center justify-center border border-white/20 ${
+                  step === 'DV Measures' ? 'ring-2 ring-purple-500/50' : ''
+                }`}>
                   <span className="text-white font-semibold">{index + 1}</span>
                 </div>
                 <span className="text-xs text-zinc-400">{step}</span>
+                {step === 'DV Measures' && (
+                  <span className="text-xs text-purple-400 block mt-1">Randomized</span>
+                )}
               </div>
             ))}
           </div>
@@ -203,8 +231,8 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { icon: FiShield, title: 'IRB Compliant', desc: 'Standard consent & debrief' },
-            { icon: FiZap, title: 'Smart Randomization', desc: 'Minimize order effects' },
-            { icon: FiFileText, title: 'Export Ready', desc: 'Qualtrics QSF format' }
+            { icon: FiZap, title: 'Smart Randomization', desc: 'Within & between blocks' },
+            { icon: FiFileText, title: 'QSF Format', desc: 'Ready for Qualtrics' }
           ].map((feature, index) => (
             <div key={index} className="text-center">
               <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] backdrop-blur-xl flex items-center justify-center">
@@ -216,9 +244,9 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
           ))}
         </div>
 
-        {/* Generate button or success state */}
-        {!generatedUrl ? (
-          <div className="text-center">
+        {/* Generate button or result state */}
+        <div className="text-center">
+          {!exportResult ? (
             <Button
               onClick={handleGenerate}
               disabled={isGenerating}
@@ -234,42 +262,70 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
               {isGenerating ? (
                 <div className="flex items-center gap-3">
                   <FiLoader className="w-5 h-5 animate-spin" />
-                  Generating Survey...
+                  Generating QSF File...
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <FiZap className="w-5 h-5" />
-                  Generate Survey
+                  <FiDownload className="w-5 h-5" />
+                  Export Survey (QSF)
                 </div>
               )}
             </Button>
-          </div>
-        ) : (
-          <div className="text-center space-y-6">
-            {/* Success message */}
-            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-green-500/10 border border-green-500/30">
-              <FiCheck className="w-5 h-5 text-green-400" />
-              <span className="text-green-400 font-medium">Survey Generated Successfully!</span>
-            </div>
-            
-            {/* Survey URL */}
-            <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10">
-              <p className="text-sm text-zinc-400 mb-3">Your survey is ready at:</p>
-              <div className="flex items-center gap-3">
-                <code className="flex-1 px-4 py-3 bg-zinc-900 rounded-lg text-blue-400 text-sm font-mono">
-                  {generatedUrl}
-                </code>
-                <Button
-                  onClick={() => window.open(generatedUrl, '_blank')}
-                  className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center gap-2"
-                >
-                  <FiExternalLink className="w-4 h-4" />
-                  Open
-                </Button>
+          ) : (
+            <div className="space-y-4">
+              {/* Result message */}
+              <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-xl border ${
+                exportResult.success 
+                  ? 'bg-green-500/10 border-green-500/30' 
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                <FiCheck className={`w-5 h-5 ${
+                  exportResult.success ? 'text-green-400' : 'text-red-400'
+                }`} />
+                <span className={`font-medium ${
+                  exportResult.success ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {exportResult.message}
+                </span>
               </div>
+              
+              {/* Instructions */}
+              {exportResult.success && (
+                <div className="bg-zinc-900/50 rounded-xl p-6 border border-white/10 max-w-2xl mx-auto">
+                  <h4 className="text-lg font-medium text-white mb-3">Next Steps:</h4>
+                  <ol className="space-y-2 text-left">
+                    <li className="flex items-start gap-3">
+                      <span className="text-blue-400 font-medium">1.</span>
+                      <span className="text-zinc-300">Find the QSF file in your downloads folder</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-blue-400 font-medium">2.</span>
+                      <span className="text-zinc-300">Log into your Qualtrics account</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-blue-400 font-medium">3.</span>
+                      <span className="text-zinc-300">Create a new project → Survey → Import survey</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-blue-400 font-medium">4.</span>
+                      <span className="text-zinc-300">Upload the QSF file and your survey is ready!</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
+              
+              {/* Try again button */}
+              {exportResult.success && (
+                <Button
+                  onClick={() => setExportResult(null)}
+                  className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300"
+                >
+                  Export Another Copy
+                </Button>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

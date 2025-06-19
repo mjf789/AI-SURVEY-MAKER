@@ -1,7 +1,8 @@
+// frontend/src/components/BuilderPanel.jsx
 import React from 'react';
 import { Button } from './ui/button';
 import ProgressSteps from './ProgressSteps';
-import StepWelcome from './steps/StepWelcome';  // Changed from StepStudyType
+import StepWelcome from './steps/StepWelcome';
 import StepResearchQuestion from './steps/StepResearchQuestion';
 import StepExploratoryDVs from './steps/StepExploratoryDVs';
 import StepDemographics from './steps/StepDemographics';
@@ -20,18 +21,22 @@ const BuilderPanel = ({
     switch(currentStep) {
       case 1:
         return <StepWelcome 
-          onGetStarted={onNext}  // Pass onNext to handle getting started
+          onGetStarted={onNext}
           updateSurveyData={updateSurveyData}
         />;
       case 2:
+        // Pass extractedDVs so the component can show AI-extracted variables
         return <StepResearchQuestion 
           researchQuestion={surveyData.researchQuestion}
           hypothesis={surveyData.hypothesis}
+          extractedDVs={surveyData.extractedDVs}
           updateSurveyData={updateSurveyData}
         />;
       case 3:
+        // Pass both exploratoryDVs (dependentVariables) AND extractedDVs
         return <StepExploratoryDVs 
           exploratoryDVs={surveyData.dependentVariables}
+          extractedDVs={surveyData.extractedDVs}
           updateSurveyData={updateSurveyData}
         />;
       case 4:
@@ -58,7 +63,11 @@ const BuilderPanel = ({
         const hypotheses = Array.isArray(surveyData.hypothesis) ? surveyData.hypothesis : [];
         return hypotheses.length > 0 && hypotheses.some(h => h.text && h.text.trim() !== '');
       case 3:
-        return true; // Optional - can proceed without DVs
+        // Check if at least one DV has operationalizations
+        return surveyData.dependentVariables && 
+               surveyData.dependentVariables.some(dv => 
+                 dv.operationalizations && dv.operationalizations.length > 0
+               );
       case 4:
         return surveyData.demographics.length > 0;
       default:
@@ -68,7 +77,6 @@ const BuilderPanel = ({
 
   return (
     <div className="h-full flex flex-col p-4">
-      {/* Large glass container wrapper */}
       <div className="flex-1 w-full max-w-[95%] mx-auto rounded-3xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 overflow-hidden">
         <div className="bg-gradient-to-br from-zinc-900/50 to-transparent h-full flex flex-col p-12">
           {/* Progress indicator - hide on welcome page */}

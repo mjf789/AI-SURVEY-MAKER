@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React, { useState } from 'react';
 import BuilderPanel from './components/BuilderPanel';
 import GlobalStyles from './components/GlobalStyles';
@@ -9,6 +10,7 @@ function App() {
     researchQuestion: '',
     hypothesis: [], // Array format for multiple hypotheses
     extractedVariables: { iv: [], dv: [], population: '' },
+    extractedDVs: [], // NEW: DVs extracted by AI from hypotheses
     dependentVariables: [], // For the dependent variables step
     demographics: [],
     blocks: [],
@@ -36,42 +38,131 @@ function App() {
 
   const handleGenerateSurvey = async () => {
     try {
-      // Format hypotheses for the API
-      const hypothesesText = Array.isArray(surveyData.hypothesis) 
-        ? surveyData.hypothesis.map((h, i) => `H${i + 1}: ${h.text}`).join('\n')
-        : surveyData.hypothesis;
-
-      // Format dependent variables for the API
-      const dvText = surveyData.dependentVariables.map(dv => {
-        const opsText = dv.operationalizations.map(op => 
-          `  - ${op.scaleName} (${op.method === 'pdf' ? 'PDF' : 'Text'})`
-        ).join('\n');
-        return `${dv.name}:\n${opsText}`;
-      }).join('\n\n');
-
-      const description = `
-        Research Question: ${surveyData.researchQuestion}
-        Hypotheses: ${hypothesesText}
-        Dependent Variables: 
-        ${dvText}
-        Demographics: ${surveyData.demographics.join(', ')}
-      `;
-
-      const response = await fetch('/api/generate-survey', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Prepare data for QSF generation with automatic randomization
+      const exportData = {
+        study: {
+          title: surveyData.researchQuestion || 'Research Survey',
+          description: surveyData.researchQuestion
         },
-        body: JSON.stringify({ description })
+        hypotheses: surveyData.hypothesis,
+        dependentVariables: surveyData.dependentVariables,
+        demographics: surveyData.demographics,
+        exportSettings: {
+          format: 'qsf',
+          includeTemplates: {
+            consent: true,
+            demographics: true,
+            debrief: true
+          },
+          demographicOptions: {}
+        },
+        // Always enable randomization for better research design
+        randomization: {
+          betweenBlocks: { 
+            enabled: true,
+            type: 'full',
+            fixedBlocks: ['consent', 'demographics', 'debrief']
+          },
+          withinBlocks: { 
+            enabled: true,
+            blockSettings: {}
+          }
+        }
+      };
+
+      // Build demographic options based on selected demographics
+      surveyData.demographics.forEach(demo => {
+        const demoLower = demo.toLowerCase();
+        switch(demoLower) {
+          case 'age':
+            exportData.exportSettings.demographicOptions.age = { 
+              type: 'numeric', 
+              validation: { min: 18, max: 100 } 
+            };
+            break;
+          case 'gender':
+            exportData.exportSettings.demographicOptions.gender = { 
+              type: 'multiple_choice', 
+              options: ['Male', 'Female', 'Non-binary', 'Prefer not to say'] 
+            };
+            break;
+          case 'ethnicity':
+            exportData.exportSettings.demographicOptions.ethnicity = { 
+              type: 'multiple_choice', 
+              options: ['White/Caucasian', 'Black/African American', 'Hispanic/Latino', 'Asian', 'Native American', 'Pacific Islander', 'Other', 'Prefer not to say'] 
+            };
+            break;
+          case 'education':
+            exportData.exportSettings.demographicOptions.education = { 
+              type: 'multiple_choice', 
+              options: ['Less than high school', 'High school diploma/GED', 'Some college', 'Bachelor\'s degree', 'Master\'s degree', 'Doctoral degree', 'Professional degree'] 
+            };
+            break;
+          case 'income':
+            exportData.exportSettings.demographicOptions.income = { 
+              type: 'multiple_choice', 
+              options: ['Less than $25,000', '$25,000-$49,999', '$50,000-$74,999', '$75,000-$99,999', '$100,000-$149,999', '$150,000 or more', 'Prefer not to say'] 
+            };
+            break;
+          case 'location':
+            exportData.exportSettings.demographicOptions.location = { 
+              type: 'text',
+              placeholder: 'City, State/Country'
+            };
+            break;
+          case 'relationship status':
+            exportData.exportSettings.demographicOptions['relationship status'] = { 
+              type: 'multiple_choice', 
+              options: ['Single', 'In a relationship', 'Married', 'Divorced', 'Widowed', 'Prefer not to say'] 
+            };
+            break;
+          case 'employment':
+            exportData.exportSettings.demographicOptions.employment = { 
+              type: 'multiple_choice', 
+              options: ['Full-time', 'Part-time', 'Self-employed', 'Unemployed', 'Student', 'Retired', 'Other'] 
+            };
+            break;
+        }
+      });
+
+      // Set up within-block randomization for each DV
+      if (surveyData.dependentVariables) {
+        surveyData.dependentVariables.forEach(dv => {
+          exportData.randomization.withinBlocks.blockSettings[`dv_${dv.id}`] = {
+            randomizeQuestions: true,
+            randomizeOptions: false
+          };
+        });
+      }
+
+      console.log('Sending survey data to QSF generator:', exportData);
+
+      const response = await fetch('/api/generate-qsf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surveyData: exportData })
       });
       
-      const result = await response.json();
-      if (result.success) {
-        alert(`Survey created! URL: ${result.surveyUrl}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${surveyData.researchQuestion?.replace(/[^a-z0-9]/gi, '_') || 'survey'}.qsf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        console.error('Export failed:', errorText);
+        return { success: false, error: errorText };
       }
     } catch (error) {
       console.error('Error generating survey:', error);
-      alert('Failed to generate survey. Please try again.');
+      return { success: false, error: error.message };
     }
   };
 

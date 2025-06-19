@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
+// frontend/src/components/steps/StepExploratoryDVs.jsx
+import React, { useState, useEffect } from 'react';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
-import { FiPlus, FiTrash2, FiFileText, FiUpload, FiEdit3, FiCheck, FiX, FiFile } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiFileText, FiUpload, FiEdit3, FiCheck, FiX, FiFile, FiLoader, FiZap } from 'react-icons/fi';
 
-const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyData }) => {
+const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, extractedDVs, updateSurveyData }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newDV, setNewDV] = useState({ name: '', operationalizations: [] });
   const [addingOperationalization, setAddingOperationalization] = useState(null);
   const [newOperationalization, setNewOperationalization] = useState({ scaleName: '', method: 'text', content: '' });
+  const [uploadingFor, setUploadingFor] = useState(null);
+
+  useEffect(() => {
+    // If we have extracted DVs but no dependent variables yet, initialize them
+    if (extractedDVs && extractedDVs.length > 0 && (!dependentVariables || dependentVariables.length === 0)) {
+      const initialDVs = extractedDVs.map(dv => ({
+        id: dv.id || `dv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: dv.name,
+        operationalizations: [],
+        isExtracted: true // Mark as AI-extracted
+      }));
+      updateSurveyData('dependentVariables', initialDVs);
+    }
+  }, [extractedDVs, dependentVariables, updateSurveyData]);
 
   const handleAddDV = () => {
     if (newDV.name && newDV.operationalizations.length > 0) {
@@ -83,14 +98,66 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e, dvId = null) => {
     const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') {
+    if (!file || file.type !== 'application/pdf') {
+      alert('Please upload a PDF file');
+      return;
+    }
+
+    // If it's for the form (not direct upload to existing DV)
+    if (!dvId) {
       setNewOperationalization({
         ...newOperationalization,
         content: file.name,
         file: file
       });
+      return;
+    }
+
+    // Direct upload to existing DV - call API
+    setUploadingFor(dvId);
+    const formData = new FormData();
+    formData.append('scale', file);
+
+    try {
+      const response = await fetch('/api/parse-scales', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update the DV with parsed scales
+        const updatedDVs = dependentVariables.map(dv => {
+          if (dv.id === dvId) {
+            const newOps = data.scales.map(scale => ({
+              id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              scaleName: scale.scaleName,
+              method: 'pdf',
+              content: file.name,
+              items: scale.items
+            }));
+            
+            return {
+              ...dv,
+              operationalizations: [...(dv.operationalizations || []), ...newOps]
+            };
+          }
+          return dv;
+        });
+        
+        updateSurveyData('dependentVariables', updatedDVs);
+        alert(`Successfully extracted ${data.scales.length} scale(s) from PDF!`);
+      } else {
+        alert('Failed to parse PDF. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error parsing PDF:', error);
+      alert('Failed to parse PDF. Please try again.');
+    } finally {
+      setUploadingFor(null);
     }
   };
 
@@ -106,8 +173,25 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
       </div>
 
       <div className="max-w-5xl mx-auto px-4">
-        {/* Empty state */}
-        {dependentVariables.length === 0 && !isAdding && (
+        {/* Show extracted DVs notice */}
+        {extractedDVs && extractedDVs.length > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/20">
+                <FiZap className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-1">AI-Extracted Variables</h4>
+                <p className="text-zinc-400 text-sm">
+                  Based on your hypotheses, we've identified {extractedDVs.length} dependent variable{extractedDVs.length !== 1 ? 's' : ''} for you to operationalize.
+                  Add scales or measures to each variable below.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Empty state - only show if no DVs at all (including extracted) */}
+        {(!dependentVariables || dependentVariables.length === 0) && !isAdding && (
           <div className="rounded-2xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-12">
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-white/[0.05] to-white/[0.02] backdrop-blur-xl flex items-center justify-center">
@@ -139,12 +223,19 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                 {/* DV Header */}
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/10">
-                      <span className="text-lg font-bold text-green-400">DV{index + 1}</span>
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${dv.isExtracted ? 'from-purple-500/20 to-purple-600/10' : 'from-green-500/20 to-green-600/10'}`}>
+                      <span className={`text-lg font-bold ${dv.isExtracted ? 'text-purple-400' : 'text-green-400'}`}>DV{index + 1}</span>
                     </div>
                     <div>
                       <h3 className="text-2xl font-semibold text-white">{dv.name}</h3>
-                      <p className="text-zinc-400 mt-1">{dv.operationalizations.length} operationalization{dv.operationalizations.length !== 1 ? 's' : ''}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {dv.isExtracted && (
+                          <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full">
+                            AI Extracted
+                          </span>
+                        )}
+                        <p className="text-zinc-400">{dv.operationalizations.length} operationalization{dv.operationalizations.length !== 1 ? 's' : ''}</p>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -156,6 +247,14 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                 </div>
 
                 {/* Operationalizations */}
+                {dv.operationalizations.length === 0 && dv.isExtracted && (
+                  <div className="mb-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                    <p className="text-yellow-300 text-sm">
+                      <span className="font-medium">Action needed:</span> Add at least one scale or measure for this variable
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-4 mb-4">
                   {dv.operationalizations.map((op, opIndex) => (
                     <div key={op.id} className="p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all duration-300">
@@ -172,6 +271,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                               <>
                                 <FiFile className="w-4 h-4" />
                                 <span>PDF: {op.content}</span>
+                                {op.items && <span className="text-green-400">({op.items.length} items extracted)</span>}
                               </>
                             ) : (
                               <>
@@ -192,6 +292,39 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                   ))}
                 </div>
 
+                {/* Direct PDF upload for existing DV */}
+                <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => handleFileUpload(e, dv.id)}
+                      className="hidden"
+                      id={`direct-pdf-upload-${dv.id}`}
+                    />
+                    <div className="cursor-pointer group">
+                      <div className="flex items-center justify-center p-6 border-2 border-dashed border-white/20 rounded-xl hover:border-purple-500/40 transition-all duration-300">
+                        {uploadingFor === dv.id ? (
+                          <div className="text-center">
+                            <FiLoader className="w-10 h-10 text-purple-400 mx-auto mb-3 animate-spin" />
+                            <p className="text-white/70">Processing PDF...</p>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <FiUpload className="w-10 h-10 text-white/50 group-hover:text-purple-400 transition-colors mx-auto mb-3" />
+                            <p className="text-white/70 group-hover:text-white transition-colors">
+                              Quick upload: Drop a PDF with scales here
+                            </p>
+                            <p className="text-sm text-white/40 mt-1">
+                              AI will extract all scales automatically
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
                 {/* Add operationalization button */}
                 {addingOperationalization !== dv.id && (
                   <Button
@@ -199,7 +332,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                     className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
                   >
                     <FiPlus className="mr-2 w-4 h-4" />
-                    Add Operationalization
+                    Add Operationalization Manually
                   </Button>
                 )}
 
@@ -259,7 +392,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                           <input
                             type="file"
                             accept=".pdf"
-                            onChange={handleFileUpload}
+                            onChange={(e) => handleFileUpload(e)}
                             className="hidden"
                             id={`file-upload-${dv.id}`}
                           />
@@ -313,39 +446,48 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
           {/* Add new DV form */}
           {isAdding && (
             <div className="rounded-2xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 p-8">
-              <h3 className="text-xl font-semibold text-white mb-6">Add New Variable</h3>
+              <h3 className="text-2xl font-semibold text-white mb-6">Add New Dependent Variable</h3>
               
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-base font-medium text-white mb-2 block">
-                    Variable Name
+              {/* DV Name Input */}
+              <div className="mb-6">
+                <Label className="text-base font-medium text-white mb-2 block">
+                  Variable Name
+                </Label>
+                <Input
+                  value={newDV.name}
+                  onChange={(e) => setNewDV({ ...newDV, name: e.target.value })}
+                  placeholder="e.g., Social Anxiety, Self-Esteem, Academic Performance"
+                  className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* Operationalizations for new DV */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-base font-medium text-white">
+                    Operationalizations
                   </Label>
-                  <Input
-                    value={newDV.name}
-                    onChange={(e) => setNewDV({ ...newDV, name: e.target.value })}
-                    placeholder="e.g., Social Anxiety"
-                    className="w-full px-4 py-3 text-lg bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
-                  />
+                  {newDV.operationalizations.length === 0 && (
+                    <span className="text-sm text-zinc-500">Add at least one scale or measure</span>
+                  )}
                 </div>
 
-                {/* Operationalizations for new DV */}
+                {/* List of added operationalizations */}
                 {newDV.operationalizations.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium text-white block">
-                      Operationalizations
-                    </Label>
+                  <div className="space-y-3 mb-4">
                     {newDV.operationalizations.map((op, index) => (
                       <div key={op.id} className="p-4 rounded-lg bg-white/[0.02] border border-white/5">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-white font-medium">{op.scaleName}</p>
-                            <p className="text-sm text-zinc-400">
+                            <div className="font-medium text-white">{op.scaleName}</div>
+                            <div className="text-sm text-zinc-400">
                               {op.method === 'pdf' ? `PDF: ${op.content}` : 'Text content'}
-                            </p>
+                            </div>
                           </div>
                           <button
                             onClick={() => handleRemoveOperationalization('new', op.id)}
-                            className="p-1.5 hover:bg-red-500/20 rounded transition-colors"
+                            className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
                           >
                             <FiTrash2 className="w-3.5 h-3.5 text-white/60 hover:text-red-400" />
                           </button>
@@ -355,19 +497,16 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                   </div>
                 )}
 
-                {/* Add operationalization to new DV */}
-                {addingOperationalization !== 'new' && (
+                {/* Add operationalization button or form */}
+                {addingOperationalization !== 'new' ? (
                   <Button
                     onClick={() => setAddingOperationalization('new')}
-                    className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-dashed border-white/20 hover:border-white/30 rounded-xl transition-all duration-300"
+                    className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300"
                   >
                     <FiPlus className="mr-2 w-4 h-4" />
                     Add Operationalization
                   </Button>
-                )}
-
-                {/* Operationalization form for new DV */}
-                {addingOperationalization === 'new' && (
+                ) : (
                   <div className="space-y-4 p-5 rounded-xl bg-white/[0.03] border border-blue-500/30">
                     <div>
                       <Label className="text-base font-medium text-white mb-2 block">
@@ -376,7 +515,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                       <Input
                         value={newOperationalization.scaleName}
                         onChange={(e) => setNewOperationalization({ ...newOperationalization, scaleName: e.target.value })}
-                        placeholder="e.g., Social Interaction Anxiety Scale (SIAS)"
+                        placeholder="e.g., Beck Anxiety Inventory, Rosenberg Self-Esteem Scale"
                         className="w-full px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
                       />
                     </div>
@@ -414,7 +553,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                         <Textarea
                           value={newOperationalization.content}
                           onChange={(e) => setNewOperationalization({ ...newOperationalization, content: e.target.value })}
-                          placeholder="Paste the scale items here (raw text is fine - our AI will format it)"
+                          placeholder="Paste the scale items here (e.g., 1. I feel nervous in social situations...)"
                           className="w-full min-h-[150px] px-4 py-3 text-base bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-blue-500/50 rounded-lg text-white placeholder:text-zinc-500"
                         />
                       ) : (
@@ -422,7 +561,7 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                           <input
                             type="file"
                             accept=".pdf"
-                            onChange={handleFileUpload}
+                            onChange={(e) => handleFileUpload(e)}
                             className="hidden"
                             id="file-upload-new"
                           />
@@ -469,29 +608,29 @@ const StepExploratoryDVs = ({ exploratoryDVs: dependentVariables, updateSurveyDa
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Action buttons for new DV */}
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    onClick={handleAddDV}
-                    disabled={!newDV.name || newDV.operationalizations.length === 0}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 py-3 text-base font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FiCheck className="mr-2" />
-                    Add Variable
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setIsAdding(false);
-                      setNewDV({ name: '', operationalizations: [] });
-                      setAddingOperationalization(null);
-                      setNewOperationalization({ scaleName: '', method: 'text', content: '' });
-                    }}
-                    className="px-6 py-3 bg-white/[0.05] border-white/20 text-white hover:bg-white/[0.08] hover:border-white/30 rounded-lg"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+              {/* Action buttons for new DV */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleAddDV}
+                  disabled={!newDV.name || newDV.operationalizations.length === 0}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-lg disabled:opacity-50 disabled:from-gray-600 disabled:to-gray-700 transition-all duration-300"
+                >
+                  <FiCheck className="mr-2 w-4 h-4" />
+                  Create Variable
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsAdding(false);
+                    setNewDV({ name: '', operationalizations: [] });
+                    setAddingOperationalization(null);
+                    setNewOperationalization({ scaleName: '', method: 'text', content: '' });
+                  }}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg"
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
