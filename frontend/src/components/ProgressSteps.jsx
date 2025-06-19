@@ -3,11 +3,10 @@ import React from 'react';
 const ProgressSteps = ({ currentStep }) => {
   const steps = [
     { number: 1, label: 'Study Type' },
-    { number: 2, label: 'Research Question' },
-    { number: 3, label: 'Primary DV' },
-    { number: 4, label: 'Exploratory DVs' },
-    { number: 5, label: 'Demographics' },
-    { number: 6, label: 'Review & Generate' }
+    { number: 2, label: 'Hypotheses' },
+    { number: 3, label: 'Dependent Variables' },
+    { number: 4, label: 'Demographics' },
+    { number: 5, label: 'Review & Generate' }
   ];
 
   return (

@@ -3,7 +3,6 @@ import { Button } from './ui/button';
 import ProgressSteps from './ProgressSteps';
 import StepStudyType from './steps/StepStudyType';
 import StepResearchQuestion from './steps/StepResearchQuestion';
-import StepPrimaryDV from './steps/StepPrimaryDV';
 import StepExploratoryDVs from './steps/StepExploratoryDVs';
 import StepDemographics from './steps/StepDemographics';
 import StepReview from './steps/StepReview';
@@ -31,21 +30,16 @@ const BuilderPanel = ({
           updateSurveyData={updateSurveyData}
         />;
       case 3:
-        return <StepPrimaryDV 
-          primaryDV={surveyData.primaryDV}
+        return <StepExploratoryDVs 
+          exploratoryDVs={surveyData.dependentVariables}
           updateSurveyData={updateSurveyData}
         />;
       case 4:
-        return <StepExploratoryDVs 
-          exploratoryDVs={surveyData.exploratoryDVs}
-          updateSurveyData={updateSurveyData}
-        />;
-      case 5:
         return <StepDemographics 
           demographics={surveyData.demographics}
           updateSurveyData={updateSurveyData}
         />;
-      case 6:
+      case 5:
         return <StepReview 
           surveyData={surveyData}
           onGenerateSurvey={onGenerateSurvey}
@@ -60,13 +54,12 @@ const BuilderPanel = ({
       case 1:
         return surveyData.studyType !== '';
       case 2:
-        return surveyData.researchQuestion.trim() !== '';
+        // Updated to check for at least one hypothesis in the array
+        const hypotheses = Array.isArray(surveyData.hypothesis) ? surveyData.hypothesis : [];
+        return hypotheses.length > 0 && hypotheses.some(h => h.text && h.text.trim() !== '');
       case 3:
-        return surveyData.primaryDV.name.trim() !== '' && 
-               surveyData.primaryDV.items.length > 0;
+        return true; // Optional - can proceed without DVs
       case 4:
-        return true;
-      case 5:
         return surveyData.demographics.length > 0;
       default:
         return true;
@@ -79,72 +72,53 @@ const BuilderPanel = ({
       <div className="flex-1 w-full max-w-[95%] mx-auto rounded-3xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 overflow-hidden">
         <div className="bg-gradient-to-br from-zinc-900/50 to-transparent h-full flex flex-col p-12">
           {/* Progress indicator inside glass container */}
-          <div className="mb-12 flex-shrink-0">
+          <div className="mb-12 shrink-0">
             <ProgressSteps currentStep={currentStep} />
           </div>
-          
-          {/* Main content area - scrollable container */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar pr-4">
-              <div className="w-full">
-                <div key={currentStep} className="animate-stepFade pb-8">
-                  {renderStep()}
-                </div>
-              </div>
-            </div>
+
+          {/* Main content area with proper scrolling */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pr-4">
+            {renderStep()}
           </div>
-          
-          {/* Navigation - sticky at bottom inside glass container */}
-          <div className="flex gap-6 pt-8 flex-shrink-0">
-            {currentStep > 1 && (
-              <Button 
-                variant="ghost" 
-                onClick={onPrevious}
-                className="group flex items-center px-8 py-4 text-zinc-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.05] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                <FiArrowLeft className="mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
-                <span className="font-medium">Previous</span>
-              </Button>
-            )}
-            {currentStep < 6 ? (
-              <Button 
+
+          {/* Navigation buttons at bottom of glass container */}
+          <div className="flex justify-between items-center pt-8 pb-4 border-t border-white/5 shrink-0">
+            <Button
+              onClick={onPrevious}
+              disabled={currentStep === 1}
+              className={`
+                px-6 py-3 rounded-xl font-medium transition-all duration-300
+                flex items-center gap-2 text-white
+                ${currentStep === 1 
+                  ? 'opacity-50 cursor-not-allowed bg-white/5' 
+                  : 'bg-white/10 hover:bg-white/20 hover:scale-105'
+                }
+              `}
+            >
+              <FiArrowLeft className="w-4 h-4" />
+              Previous
+            </Button>
+
+            {currentStep < 5 ? (
+              <Button
                 onClick={onNext}
                 disabled={!canProceed()}
                 className={`
-                  group flex items-center ml-auto px-8 py-4 rounded-xl font-medium
-                  transition-all duration-300 transform
-                  ${canProceed()
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 border border-blue-400/20'
-                    : 'bg-zinc-800/50 text-zinc-600 border border-zinc-700/50 cursor-not-allowed'
+                  px-6 py-3 rounded-xl font-medium transition-all duration-300
+                  flex items-center gap-2 text-white
+                  ${!canProceed()
+                    ? 'opacity-50 cursor-not-allowed bg-white/5' 
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25'
                   }
                 `}
               >
-                <span>Continue</span>
-                <FiArrowRight className={`
-                  ml-3 transition-all duration-300
-                  ${canProceed() ? 'group-hover:translate-x-1' : ''}
-                `} />
+                Next
+                <FiArrowRight className="w-4 h-4" />
               </Button>
             ) : null}
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes stepFade {
-          from { 
-            opacity: 0; 
-            transform: translateY(10px);
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0);
-          }
-        }
-        .animate-stepFade {
-          animation: stepFade 0.4s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

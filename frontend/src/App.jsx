@@ -7,15 +7,9 @@ function App() {
   const [surveyData, setSurveyData] = useState({
     studyType: '',
     researchQuestion: '',
-    hypothesis: '',
+    hypothesis: [], // Changed from string to array
     extractedVariables: { iv: [], dv: [], population: '' },
-    primaryDV: {
-      name: '',
-      items: [],
-      responseFormat: '',
-      randomizeItems: false
-    },
-    exploratoryDVs: [],
+    dependentVariables: [], // Renamed from exploratoryDVs
     demographics: [],
     blocks: [],
     flow: ['consent', 'demographics', 'measures', 'debrief']
@@ -29,7 +23,7 @@ function App() {
   };
 
   const handleNext = () => {
-    if (currentStep < 6) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -42,11 +36,25 @@ function App() {
 
   const handleGenerateSurvey = async () => {
     try {
+      // Format hypotheses for the API
+      const hypothesesText = Array.isArray(surveyData.hypothesis) 
+        ? surveyData.hypothesis.map((h, i) => `H${i + 1}: ${h.text}`).join('\n')
+        : surveyData.hypothesis;
+
+      // Format dependent variables for the API
+      const dvText = surveyData.dependentVariables.map(dv => {
+        const opsText = dv.operationalizations.map(op => 
+          `  - ${op.scaleName} (${op.method === 'pdf' ? 'PDF' : 'Text'})`
+        ).join('\n');
+        return `${dv.name}:\n${opsText}`;
+      }).join('\n\n');
+
       const description = `
         Study Type: ${surveyData.studyType}
         Research Question: ${surveyData.researchQuestion}
-        Primary DV: ${surveyData.primaryDV.name}
-        Items: ${surveyData.primaryDV.items.join(', ')}
+        Hypotheses: ${hypothesesText}
+        Dependent Variables: 
+        ${dvText}
         Demographics: ${surveyData.demographics.join(', ')}
       `;
 

@@ -16,6 +16,39 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
     }, 3000);
   };
 
+  // Format dependent variables for display
+  const formatDependentVariables = () => {
+    if (!surveyData.dependentVariables || surveyData.dependentVariables.length === 0) {
+      return [{ label: 'Status', value: 'None added' }];
+    }
+    
+    return surveyData.dependentVariables.map(dv => ({
+      label: dv.name,
+      value: `${dv.operationalizations.length} scale${dv.operationalizations.length !== 1 ? 's' : ''}`,
+      expandedItems: dv.operationalizations && dv.operationalizations.length > 0 
+        ? dv.operationalizations.map((op, i) => ({
+            label: op.scaleName || 'Unnamed scale',
+            value: op.method === 'pdf' ? `PDF: ${op.content || 'No file'}` : 'Text content provided'
+          }))
+        : null
+    }));
+  };
+
+  // Get detailed hypotheses for expanded view
+  const getDetailedHypotheses = () => {
+    if (!surveyData.hypothesis) return [];
+    
+    if (Array.isArray(surveyData.hypothesis)) {
+      return surveyData.hypothesis.map((h, i) => ({
+        label: `H${i + 1}`,
+        value: h.text
+      }));
+    }
+    
+    // Fallback for old string format
+    return [{ label: 'Hypothesis', value: surveyData.hypothesis }];
+  };
+
   const sections = [
     {
       icon: FiFileText,
@@ -24,29 +57,17 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
       items: [
         { label: 'Type', value: surveyData.studyType || 'Not specified', highlight: true },
         { label: 'Research Question', value: surveyData.researchQuestion || 'Not specified' },
-        { label: 'Hypothesis', value: surveyData.hypothesis || 'Not specified' }
-      ]
+        { label: 'Hypotheses', value: formatHypotheses() }
+      ],
+      expandedItems: Array.isArray(surveyData.hypothesis) && surveyData.hypothesis.length > 1 
+        ? getDetailedHypotheses() 
+        : null
     },
     {
       icon: FiClipboard,
-      title: 'Primary Measure',
+      title: 'Dependent Variables',
       color: 'purple',
-      items: [
-        { label: 'Scale', value: surveyData.primaryDV.name || 'Not specified', highlight: true },
-        { label: 'Items', value: `${surveyData.primaryDV.items.length} questions` },
-        { label: 'Order', value: surveyData.primaryDV.randomizeItems ? 'Randomized' : 'Fixed' }
-      ]
-    },
-    {
-      icon: FiLayers,
-      title: 'Exploratory Measures',
-      color: 'green',
-      items: surveyData.exploratoryDVs.length > 0 
-        ? surveyData.exploratoryDVs.map(dv => ({
-            label: dv.name,
-            value: `${dv.items.length} items`
-          }))
-        : [{ label: 'Status', value: 'None added' }]
+      items: formatDependentVariables()
     },
     {
       icon: FiUsers,
@@ -62,7 +83,6 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
   const colorClasses = {
     blue: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
     purple: 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
-    green: 'from-green-500/20 to-green-600/10 border-green-500/30',
     orange: 'from-orange-500/20 to-orange-600/10 border-orange-500/30'
   };
 
@@ -76,7 +96,7 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
 
       <div className="max-w-5xl mx-auto px-4">
         {/* Review sections grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {sections.map((section, index) => {
             const Icon = section.icon;
             return (
@@ -102,16 +122,44 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
                   {/* Items */}
                   <div className="space-y-2">
                     {section.items.map((item, i) => (
-                      <div key={i} className="flex justify-between items-start gap-3">
-                        <span className="text-zinc-400 text-sm">{item.label}</span>
-                        <span className={`
-                          text-sm text-right flex-1
-                          ${item.highlight ? 'text-white font-medium' : 'text-zinc-300'}
-                        `}>
-                          {item.value}
-                        </span>
+                      <div key={i}>
+                        <div className="flex justify-between items-start gap-3">
+                          <span className="text-zinc-400 text-sm">{item.label}</span>
+                          <span className={`
+                            text-sm text-right flex-1
+                            ${item.highlight ? 'text-white font-medium' : 'text-zinc-300'}
+                          `}>
+                            {item.value}
+                          </span>
+                        </div>
+                        
+                        {/* Expanded items for DVs with operationalizations */}
+                        {item.expandedItems && (
+                          <div className="mt-2 pl-4 space-y-1">
+                            {item.expandedItems.map((subItem, j) => (
+                              <div key={j} className="text-xs">
+                                <span className="text-zinc-500">• {subItem.label}:</span>
+                                <span className="text-zinc-400 ml-1">{subItem.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
+                    
+                    {/* Expanded items for multiple hypotheses */}
+                    {section.expandedItems && (
+                      <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                        {section.expandedItems.map((item, i) => (
+                          <div key={i} className="pl-4">
+                            <div className="flex items-start gap-2">
+                              <span className="text-blue-400 text-xs font-medium shrink-0">{item.label}:</span>
+                              <span className="text-zinc-300 text-sm">{item.value}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -174,72 +222,46 @@ const StepReview = ({ surveyData, onGenerateSurvey }) => {
             >
               {isGenerating ? (
                 <>
-                  <FiLoader className="inline-block mr-3 animate-spin" />
-                  Generating Your Survey...
+                  <FiLoader className="inline-block w-5 h-5 mr-3 animate-spin" />
+                  Generating Survey...
                 </>
               ) : (
                 <>
-                  <FiCheck className="inline-block mr-3" />
+                  <FiZap className="inline-block w-5 h-5 mr-3" />
                   Generate Qualtrics Survey
                 </>
               )}
             </Button>
-            
-            {isGenerating && (
-              <div className="mt-6 max-w-md mx-auto">
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-progress" />
-                </div>
-                <p className="text-sm text-zinc-500 mt-3">Creating your professional survey...</p>
-              </div>
-            )}
           </div>
         ) : (
-          <div className="text-center animate-slideIn">
-            <div className="inline-block p-6 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-600/10 backdrop-blur-md border-2 border-green-500/30">
-              <FiCheck className="w-14 h-14 mx-auto mb-3 text-green-400" />
-              <h3 className="text-2xl font-bold text-white mb-3">Survey Generated!</h3>
-              <p className="text-zinc-300 mb-5">Your Qualtrics survey is ready to use</p>
-              
-              <div className="bg-black/20 rounded-lg p-3 mb-5">
-                <p className="text-xs text-zinc-400 mb-1">Survey URL:</p>
-                <p className="text-white font-mono break-all text-sm">{generatedUrl}</p>
-              </div>
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500/20 border border-green-500/30 mb-4">
+              <FiCheck className="w-5 h-5 text-green-400" />
+              <span className="text-green-400 font-medium">Survey Generated Successfully!</span>
+            </div>
+            
+            <div className="flex justify-center gap-4">
+              <Button
+                onClick={() => window.open(generatedUrl, '_blank')}
+                className="px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-xl transition-all duration-300 flex items-center gap-2"
+              >
+                <FiExternalLink className="w-4 h-4" />
+                Open in Qualtrics
+              </Button>
               
               <Button
-                className="bg-white text-zinc-900 hover:bg-zinc-100 px-6 py-3 text-base font-medium rounded-lg"
+                onClick={() => {
+                  setGeneratedUrl('');
+                  setIsGenerating(false);
+                }}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl transition-all duration-300"
               >
-                <FiExternalLink className="mr-2" />
-                Open in Qualtrics
+                Generate Another
               </Button>
             </div>
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes progress {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.6s ease-out;
-        }
-        .animate-slideIn {
-          animation: slideIn 0.5s ease-out;
-        }
-        .animate-progress {
-          animation: progress 3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
