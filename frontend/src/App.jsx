@@ -100,7 +100,7 @@ function App() {
         </div>
 
         {/* Main container - simplified */}
-        <div className="relative mx-auto h-screen max-w-[1400px] px-12 flex flex-col">
+        <div className="relative mx-auto h-screen px-4 flex flex-col">
           <BuilderPanel 
             currentStep={currentStep}
             surveyData={surveyData}

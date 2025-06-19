@@ -74,56 +74,59 @@ const BuilderPanel = ({
   };
 
   return (
-    <div className="h-full flex flex-col backdrop-blur-xl">
-      <div className="flex-1 flex flex-col p-16 min-h-0">
-        {/* Progress indicator */}
-        <div className="mb-12 flex-shrink-0">
-          <ProgressSteps currentStep={currentStep} />
-        </div>
-        
-        {/* Main content area - scrollable container */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar pr-4">
-            <div className="w-full max-w-7xl mx-auto">
-              <div key={currentStep} className="animate-stepFade pb-8">
-                {renderStep()}
+    <div className="h-full flex flex-col p-4">
+      {/* Large glass container wrapper - now with controlled dimensions */}
+      <div className="flex-1 w-full max-w-[95%] mx-auto rounded-3xl backdrop-blur-md bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10 overflow-hidden">
+        <div className="bg-gradient-to-br from-zinc-900/50 to-transparent h-full flex flex-col p-12">
+          {/* Progress indicator inside glass container */}
+          <div className="mb-12 flex-shrink-0">
+            <ProgressSteps currentStep={currentStep} />
+          </div>
+          
+          {/* Main content area - scrollable container */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar pr-4">
+              <div className="w-full">
+                <div key={currentStep} className="animate-stepFade pb-8">
+                  {renderStep()}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Navigation - sticky at bottom */}
-        <div className="flex gap-6 pt-8 flex-shrink-0">
-          {currentStep > 1 && (
-            <Button 
-              variant="ghost" 
-              onClick={onPrevious}
-              className="group flex items-center px-8 py-4 text-zinc-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.05] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
-            >
-              <FiArrowLeft className="mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
-              <span className="font-medium">Previous</span>
-            </Button>
-          )}
-          {currentStep < 6 ? (
-            <Button 
-              onClick={onNext}
-              disabled={!canProceed()}
-              className={`
-                group flex items-center ml-auto px-8 py-4 rounded-xl font-medium
-                transition-all duration-300 transform
-                ${canProceed()
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 border border-blue-400/20'
-                  : 'bg-zinc-800/50 text-zinc-600 border border-zinc-700/50 cursor-not-allowed'
-                }
-              `}
-            >
-              <span>Continue</span>
-              <FiArrowRight className={`
-                ml-3 transition-all duration-300
-                ${canProceed() ? 'group-hover:translate-x-1' : ''}
-              `} />
-            </Button>
-          ) : null}
+          
+          {/* Navigation - sticky at bottom inside glass container */}
+          <div className="flex gap-6 pt-8 flex-shrink-0">
+            {currentStep > 1 && (
+              <Button 
+                variant="ghost" 
+                onClick={onPrevious}
+                className="group flex items-center px-8 py-4 text-zinc-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.05] backdrop-blur-xl border border-white/10 hover:border-white/20 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
+              >
+                <FiArrowLeft className="mr-3 transition-transform duration-300 group-hover:-translate-x-1" />
+                <span className="font-medium">Previous</span>
+              </Button>
+            )}
+            {currentStep < 6 ? (
+              <Button 
+                onClick={onNext}
+                disabled={!canProceed()}
+                className={`
+                  group flex items-center ml-auto px-8 py-4 rounded-xl font-medium
+                  transition-all duration-300 transform
+                  ${canProceed()
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 border border-blue-400/20'
+                    : 'bg-zinc-800/50 text-zinc-600 border border-zinc-700/50 cursor-not-allowed'
+                  }
+                `}
+              >
+                <span>Continue</span>
+                <FiArrowRight className={`
+                  ml-3 transition-all duration-300
+                  ${canProceed() ? 'group-hover:translate-x-1' : ''}
+                `} />
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
